@@ -13,8 +13,8 @@ def main():
     alpha = 1e-4
     gamma = 0.95
     batch_size = 128
-    num_episodes = 100
-    reset_num = 10
+    num_episodes = 1000
+    reset_num = 100
 
     agent = DQN.Agent(env.num_states, env.num_actions, alpha, gamma, batch_size)
     rewards = agent.train(num_episodes, env, reset_num)
