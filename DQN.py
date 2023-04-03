@@ -107,21 +107,23 @@ class Agent():
 
     def train(self, num_episodes, env, reset_num):
         rewards = []
+        disc_rewards = []
 
         for ep in range(num_episodes):
             print(ep)
             state = env.reset()
             state = torch.tensor(state, dtype=torch.float, device=device).unsqueeze(0)
             reward = 0
+            disc_reward = 0
 
             for t in itertools.count():
-                # print(ep, t)
                 action = self.choose_action(state)
 
                 next_state, reward_t, done = env.step(action.item())
                 next_state = torch.tensor(next_state, dtype=torch.float, device=device).unsqueeze(0)
                 reward_t = torch.tensor([reward_t], dtype=torch.float, device=device).unsqueeze(0)
                 reward += reward_t.item()
+                disc_reward += (self.gamma ** t) * reward_t.item()
                 
                 self.memory.add(state, action, next_state, reward_t)
                 state = next_state
@@ -131,11 +133,12 @@ class Agent():
                 if done: break
 
             rewards.append(reward)
+            disc_rewards.append(disc_reward)
 
             if ep % reset_num == 0:
                 self.target_net.load_state_dict(self.local_net.state_dict())
 
-        return rewards
+        return rewards, disc_rewards
 
 
 

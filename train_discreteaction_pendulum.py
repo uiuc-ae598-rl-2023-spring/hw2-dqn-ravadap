@@ -5,6 +5,7 @@ import itertools
 import matplotlib.pyplot as plt
 import random
 import numpy as np
+import seaborn as sns
 
 def main():
     env = discreteaction_pendulum.Pendulum()
@@ -16,44 +17,51 @@ def main():
     num_episodes = 1000
     reset_num = 100
 
-    agent = DQN.Agent(env.num_states, env.num_actions, alpha, gamma, batch_size)
-    rewards = agent.train(num_episodes, env, reset_num)
+    r_list = []
+    dr_list = []
 
-    # rewards = []
+    for i in range(5):
+        agent = DQN.Agent(env.num_states, env.num_actions, alpha, gamma, batch_size)
+        rewards, disc_rewards = agent.train(num_episodes, env, reset_num)
+        r_list.append(rewards)
+        dr_list.append(disc_rewards)
 
-    # for ep in range(num_episodes):
-    #     print(ep)
-    #     state = env.reset()
-    #     state = torch.tensor(state, dtype=torch.float, device=device).unsqueeze(0)
-    #     reward = 0
+    print('here')
+    r_mean = np.array(r_list).mean(axis=0)
+    r_std = np.array(r_list).std(axis=0)
 
-    #     for t in itertools.count():
-    #         # print(ep, t)
-    #         action = agent.choose_action(state)
+    print('here')
+    dr_mean = np.array(dr_list).mean(axis=0)
+    dr_std = np.array(dr_list).std(axis=0)
 
-    #         next_state, reward_t, done = env.step(action.item())
-    #         next_state = torch.tensor(next_state, dtype=torch.float, device=device).unsqueeze(0)
-    #         reward_t = torch.tensor([reward_t], dtype=torch.float, device=device).unsqueeze(0)
-    #         reward += reward_t.item()
-            
-    #         agent.memory.add(state, action, next_state, reward_t)
-    #         state = next_state
+    # r_mean = np.array([10, 20, 30, 25, 32, 43])
+    # r_std = np.array([2.2, 2.3, 1.2, 2.2, 1.8, 3.5])
 
-    #         agent.optimize()
+    # dr_mean = np.array([12, 22, 30, 13, 33, 39])
+    # dr_std = np.array([2.4, 1.3, 2.2, 1.2, 1.9, 3.5])
+    print(len(r_mean), len(r_std), len(dr_mean), len(dr_std))
 
-    #         if done: break
-
-    #     rewards.append(reward)
-
-    #     if ep % reset_num == 0:
-    #         agent.target_net.load_state_dict(agent.local_net.state_dict())
-
-    plt.figure(1)
-    plt.plot(rewards)
+    plt.figure()
+    x = np.arange(len(r_mean))
+    plt.plot(x, r_mean, 'b-', label='discounted reward')
+    plt.fill_between(x, r_mean - r_std, r_mean + r_std, color='b', alpha=0.2)
+    plt.plot(x, dr_mean, 'r-', label='undiscounted reward')
+    plt.fill_between(x, dr_mean - dr_std, dr_mean + dr_std, color='r', alpha=0.2)
     plt.xlabel('Episodes')
-    plt.ylabel('Return')
-    plt.ylim(bottom=0)
+    plt.ylim((0,40))
+    plt.legend()
     plt.savefig('figures/learning_curve.png')
+
+    # fig, ax = plt.subplots(2, 1, figsize=(10, 10))
+    # ax[0].plot(rewards, label='undiscounted reward')
+    # ax[0].set_xlabel('Epiosdes')
+    # ax[0].set_ylim(bottom=0)
+    # ax[0].legend()
+    # ax[1].plot(disc_rewards, label='discounted reward')
+    # ax[1].set_xlabel('Epiosdes')
+    # ax[1].set_ylim(bottom=0)
+    # ax[1].legend()
+    # plt.savefig('figures/learning_curve.png')
 
     # create video
     # Define a policy that maps every state to the "zero torque" action
@@ -117,7 +125,8 @@ def main():
         for j in range(num):
             s = np.array((xv[i,j], yv[i,j]))
             policy_grid[i,j] = policy(s)
-            value_grid[i,j] = np.max(policy(s))
+            s_tensor = torch.tensor(s, dtype=torch.float).unsqueeze(0)
+            value_grid[i,j] = agent.local_net(s_tensor).max().item()
 
     plt.figure(4)
     plt.pcolor(xv, yv, policy_grid)
