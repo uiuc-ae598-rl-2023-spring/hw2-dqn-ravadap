@@ -47,7 +47,7 @@ class ReplayBuffer():
 
 # DQN agent that interacts with the environment
 class Agent():
-    def __init__(self, num_state, num_action, alpha, gamma, batch_size):
+    def __init__(self, num_state, num_action, alpha, gamma, batch_size, replay):
         self.num_state = num_state
         self.num_action = num_action
         self.batch_size = batch_size
@@ -59,6 +59,7 @@ class Agent():
         self.optimizer = optim.Adam(self.local_net.parameters(), alpha)
 
         self.memory = ReplayBuffer(10000)
+        if not replay: self.memory = ReplayBuffer(batch_size)
 
         self.steps = 0
 
@@ -105,23 +106,27 @@ class Agent():
 
         self.optimizer.step()
 
-    def train(self, num_episodes, env, reset_num):
+    def train(self, num_episodes, env, reset_num, targetQ):
         rewards = []
+        disc_rewards = []
+
+        if not targetQ: reset_num = 1
 
         for ep in range(num_episodes):
-            print(ep)
+            # print(ep)
             state = env.reset()
             state = torch.tensor(state, dtype=torch.float, device=device).unsqueeze(0)
             reward = 0
+            disc_reward = 0
 
             for t in itertools.count():
-                # print(ep, t)
                 action = self.choose_action(state)
 
                 next_state, reward_t, done = env.step(action.item())
                 next_state = torch.tensor(next_state, dtype=torch.float, device=device).unsqueeze(0)
                 reward_t = torch.tensor([reward_t], dtype=torch.float, device=device).unsqueeze(0)
                 reward += reward_t.item()
+                disc_reward += (self.gamma ** t) * reward_t.item()
                 
                 self.memory.add(state, action, next_state, reward_t)
                 state = next_state
@@ -131,11 +136,12 @@ class Agent():
                 if done: break
 
             rewards.append(reward)
+            disc_rewards.append(disc_reward)
 
             if ep % reset_num == 0:
                 self.target_net.load_state_dict(self.local_net.state_dict())
 
-        return rewards
+        return rewards, disc_rewards
 
 
 
