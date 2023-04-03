@@ -9,7 +9,7 @@ import seaborn as sns
 
 def main():
     env = discreteaction_pendulum.Pendulum()
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     alpha = 1e-4
     gamma = 0.95
@@ -19,49 +19,65 @@ def main():
 
     r_list = []
     dr_list = []
+    dr_list2 = []
+    dr_list3 = []
+    dr_list4 = []
 
     for i in range(5):
-        agent = DQN.Agent(env.num_states, env.num_actions, alpha, gamma, batch_size)
-        rewards, disc_rewards = agent.train(num_episodes, env, reset_num)
+        print('set 1',i)
+        agent = DQN.Agent(env.num_states, env.num_actions, alpha, gamma, batch_size, replay=True)
+        rewards, disc_rewards = agent.train(num_episodes, env, reset_num, targetQ=True)
         r_list.append(rewards)
         dr_list.append(disc_rewards)
 
-    print('here')
+        _, disc_rewards = agent.train(num_episodes, env, reset_num, targetQ=False)
+        dr_list2.append(disc_rewards)
+
+    for i in range(5):
+        print('set 2',i)
+        agent = DQN.Agent(env.num_states, env.num_actions, alpha, gamma, batch_size, replay=False)
+        _, disc_rewards = agent.train(num_episodes, env, reset_num, targetQ=True)
+        dr_list3.append(disc_rewards)
+
+        _, disc_rewards = agent.train(num_episodes, env, reset_num, targetQ=False)
+        dr_list4.append(disc_rewards)
+
     r_mean = np.array(r_list).mean(axis=0)
     r_std = np.array(r_list).std(axis=0)
 
-    print('here')
     dr_mean = np.array(dr_list).mean(axis=0)
     dr_std = np.array(dr_list).std(axis=0)
 
-    # r_mean = np.array([10, 20, 30, 25, 32, 43])
-    # r_std = np.array([2.2, 2.3, 1.2, 2.2, 1.8, 3.5])
+    dr_mean2 = np.array(dr_list2).mean(axis=0)
+    dr_std2 = np.array(dr_list2).std(axis=0)
 
-    # dr_mean = np.array([12, 22, 30, 13, 33, 39])
-    # dr_std = np.array([2.4, 1.3, 2.2, 1.2, 1.9, 3.5])
-    print(len(r_mean), len(r_std), len(dr_mean), len(dr_std))
+    dr_mean3 = np.array(dr_list3).mean(axis=0)
+    dr_std3 = np.array(dr_list3).std(axis=0)
+
+    dr_mean4 = np.array(dr_list4).mean(axis=0)
+    dr_std4 = np.array(dr_list4).std(axis=0)
 
     plt.figure()
     x = np.arange(len(r_mean))
-    plt.plot(x, r_mean, 'b-', label='discounted reward')
+    plt.plot(x, r_mean, 'b-', label = 'undiscounted reward')
     plt.fill_between(x, r_mean - r_std, r_mean + r_std, color='b', alpha=0.2)
-    plt.plot(x, dr_mean, 'r-', label='undiscounted reward')
+    plt.plot(x, dr_mean, 'r-', label = 'discounted reward')
     plt.fill_between(x, dr_mean - dr_std, dr_mean + dr_std, color='r', alpha=0.2)
     plt.xlabel('Episodes')
     plt.ylim((0,40))
     plt.legend()
     plt.savefig('figures/learning_curve.png')
 
-    # fig, ax = plt.subplots(2, 1, figsize=(10, 10))
-    # ax[0].plot(rewards, label='undiscounted reward')
-    # ax[0].set_xlabel('Epiosdes')
-    # ax[0].set_ylim(bottom=0)
-    # ax[0].legend()
-    # ax[1].plot(disc_rewards, label='discounted reward')
-    # ax[1].set_xlabel('Epiosdes')
-    # ax[1].set_ylim(bottom=0)
-    # ax[1].legend()
-    # plt.savefig('figures/learning_curve.png')
+    fig, ax = plt.subplots(2, 1, figsize=(10, 10))
+    ax[0].plot(rewards, label='undiscounted reward')
+    ax[0].set_xlabel('Epiosdes')
+    ax[0].set_ylim(bottom=0)
+    ax[0].legend()
+    ax[1].plot(disc_rewards, label='discounted reward')
+    ax[1].set_xlabel('Epiosdes')
+    ax[1].set_ylim(bottom=0)
+    ax[1].legend()
+    plt.savefig('figures/learning_curve.png')
 
     # create video
     # Define a policy that maps every state to the "zero torque" action
@@ -142,6 +158,26 @@ def main():
     plt.colorbar()
     plt.savefig('figures/state-value.png')
 
+    # ablation study
+    # with replay & target (standard algorithm)
+    # with replay & without target Q
+    # without replay, with target Q
+    # without replay, without target Q
+
+    plt.figure()
+    x = np.arange(len(r_mean))
+    plt.plot(x, dr_mean, 'r-', label='reward (with replay, with target Q)')
+    plt.fill_between(x, dr_mean - dr_std, dr_mean + dr_std, color='r', alpha=0.2)
+    plt.plot(x, dr_mean2, 'g-', label='reward (with replay, without target Q)')
+    plt.fill_between(x, dr_mean2 - dr_std2, dr_mean2 + dr_std2, color='g', alpha=0.2)
+    plt.plot(x, dr_mean3, 'b-', label='reward (without replay, with target Q)')
+    plt.fill_between(x, dr_mean3 - dr_std3, dr_mean3 + dr_std3, color='b', alpha=0.2)
+    plt.plot(x, dr_mean4, 'm-', label='reward (without replay, without target Q)')
+    plt.fill_between(x, dr_mean4 - dr_std4, dr_mean4 + dr_std4, color='m', alpha=0.2)
+    plt.xlabel('Episodes')
+    plt.ylim((0,30))
+    plt.legend()
+    plt.savefig('figures/ablation_study.png')
 
 
 if __name__ == '__main__':

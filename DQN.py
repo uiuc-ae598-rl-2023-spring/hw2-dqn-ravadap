@@ -47,7 +47,7 @@ class ReplayBuffer():
 
 # DQN agent that interacts with the environment
 class Agent():
-    def __init__(self, num_state, num_action, alpha, gamma, batch_size):
+    def __init__(self, num_state, num_action, alpha, gamma, batch_size, replay):
         self.num_state = num_state
         self.num_action = num_action
         self.batch_size = batch_size
@@ -59,6 +59,7 @@ class Agent():
         self.optimizer = optim.Adam(self.local_net.parameters(), alpha)
 
         self.memory = ReplayBuffer(10000)
+        if not replay: self.memory = ReplayBuffer(batch_size)
 
         self.steps = 0
 
@@ -105,12 +106,14 @@ class Agent():
 
         self.optimizer.step()
 
-    def train(self, num_episodes, env, reset_num):
+    def train(self, num_episodes, env, reset_num, targetQ):
         rewards = []
         disc_rewards = []
 
+        if not targetQ: reset_num = 1
+
         for ep in range(num_episodes):
-            print(ep)
+            # print(ep)
             state = env.reset()
             state = torch.tensor(state, dtype=torch.float, device=device).unsqueeze(0)
             reward = 0
